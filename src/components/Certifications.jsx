@@ -1,10 +1,10 @@
 import React from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
-import { Terminal, Award, ExternalLink, Calendar, Plus, Edit2, Trash2, ShieldCheck, FileCheck } from 'lucide-react';
+import { Terminal, Calendar, ExternalLink, ShieldCheck, FileCheck, Plus, Pencil, Trash2 } from 'lucide-react';
 
 export const Certifications = () => {
   const { data, editMode, setEditModalConfig, deleteCertification } = usePortfolio();
-  const { certifications } = data;
+  const certifications = data.certifications || [];
 
   return (
     <section id="certifications" className="py-20 relative bg-slate-900/40 light:bg-slate-50 border-t border-slate-800/60 light:border-slate-200">
@@ -24,19 +24,15 @@ export const Certifications = () => {
             </p>
           </div>
 
-          <button
-            onClick={() =>
-              setEditModalConfig({
-                isOpen: true,
-                type: 'certification',
-                data: null
-              })
-            }
-            className="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 rounded-xl font-mono text-xs font-bold flex items-center gap-1.5 shadow-lg transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Certification</span>
-          </button>
+          {editMode && (
+            <button
+              onClick={() => setEditModalConfig({ isOpen: true, type: 'certification', data: null })}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400 border border-cyan-500/40 text-xs font-mono font-semibold transition-all shadow-sm"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Certification</span>
+            </button>
+          )}
         </div>
 
         {/* Certifications Cards Grid */}
@@ -55,16 +51,11 @@ export const Certifications = () => {
                   {editMode && (
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() =>
-                          setEditModalConfig({
-                            isOpen: true,
-                            type: 'certification',
-                            data: cert
-                          })
-                        }
-                        className="p-1.5 text-cyan-400 hover:text-cyan-300 rounded-lg hover:bg-slate-800"
+                        onClick={() => setEditModalConfig({ isOpen: true, type: 'certification', data: cert })}
+                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 text-xs transition-colors"
+                        title="Edit Certification"
                       >
-                        <Edit2 className="w-3.5 h-3.5" />
+                        <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => {
@@ -72,7 +63,8 @@ export const Certifications = () => {
                             deleteCertification(cert.id);
                           }
                         }}
-                        className="p-1.5 text-rose-400 hover:text-rose-300 rounded-lg hover:bg-slate-800"
+                        className="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 text-xs transition-colors"
+                        title="Delete Certification"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -84,13 +76,15 @@ export const Certifications = () => {
                   {cert.title}
                 </h3>
                 <p className="text-sm font-semibold text-cyan-400 light:text-cyan-600 mt-1">
-                  {cert.issuer}
+                  {cert.organization || cert.issuer}
                 </p>
 
-                <div className="flex items-center gap-2 text-xs font-mono text-slate-400 mt-3">
-                  <Calendar className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Issued: {cert.date}</span>
-                </div>
+                {cert.date && (
+                  <div className="flex items-center gap-2 text-xs font-mono text-slate-400 mt-3">
+                    <Calendar className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Issued: {cert.date}</span>
+                  </div>
+                )}
 
                 {cert.credentialId && (
                   <p className="text-xs font-mono text-slate-500 mt-1">
@@ -112,7 +106,7 @@ export const Certifications = () => {
                     <span>View Certificate</span>
                   </a>
                 ) : (
-                  <span className="text-xs font-mono text-slate-500 italic">No image uploaded</span>
+                  <span className="text-xs font-mono text-slate-500 italic">Certificate Verified</span>
                 )}
 
                 {cert.credentialUrl && (
@@ -132,7 +126,7 @@ export const Certifications = () => {
 
           {certifications.length === 0 && (
             <div className="col-span-full p-8 rounded-2xl bg-slate-900/40 border border-dashed border-slate-800 text-center text-slate-400 text-xs font-mono">
-              No certifications added yet. Click "Add Certification" to display your certificates!
+              Certifications and credentials will be displayed here soon.
             </div>
           )}
         </div>

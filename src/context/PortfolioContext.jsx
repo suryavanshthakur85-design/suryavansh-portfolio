@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { initialPortfolioData } from '../data/defaultData';
+import { useAuth } from './AuthContext';
 
 const PortfolioContext = createContext();
 
@@ -7,14 +8,23 @@ const STORAGE_KEY = 'suryavansh_thakur_portfolio_data_v2';
 const THEME_KEY = 'suryavansh_thakur_portfolio_theme';
 
 export const PortfolioProvider = ({ children }) => {
+  const { token, isAuthenticated, getAuthHeaders } = useAuth();
+
   // Theme state
   const [theme, setTheme] = useState(() => {
     const savedTheme = localStorage.getItem(THEME_KEY);
     return savedTheme ? savedTheme : 'dark';
   });
 
-  // Global Edit Mode state
+  // Edit Mode state (only applicable when admin is authenticated)
   const [editMode, setEditMode] = useState(false);
+
+  // If user logs out, deactivate edit mode immediately
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setEditMode(false);
+    }
+  }, [isAuthenticated]);
 
   // Admin Dashboard Modal
   const [isAdminDashboardOpen, setIsAdminDashboardOpen] = useState(false);
@@ -27,6 +37,7 @@ export const PortfolioProvider = ({ children }) => {
 
   // Notification Toast state
   const [toast, setToast] = useState(null);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -49,6 +60,28 @@ export const PortfolioProvider = ({ children }) => {
     return initialPortfolioData;
   });
 
+  // Fetch latest portfolio data from server API on mount
+  useEffect(() => {
+    const fetchServerData = async () => {
+      try {
+        const res = await fetch('/api/portfolio');
+        if (res.ok) {
+          const serverData = await res.json();
+          if (serverData && typeof serverData === 'object' && Object.keys(serverData).length > 0) {
+            setData(prev => ({ ...prev, ...serverData }));
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(serverData));
+          }
+        }
+      } catch (err) {
+        console.warn('Could not connect to /api/portfolio, using cached/local data:', err);
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+
+    fetchServerData();
+  }, []);
+
   // Persist Theme changes
   useEffect(() => {
     const root = document.documentElement;
@@ -62,134 +95,244 @@ export const PortfolioProvider = ({ children }) => {
     localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 
-  // Persist Data changes
-  useEffect(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    } catch (e) {
-      console.error('Failed to save portfolio data to localStorage', e);
+  // Helper to persist data changes to backend with Authorization check
+  const persistToServer = async (updatedData, section = null) => {
+    // If not authenticated, reject mutation
+    if (!isAuthenticated) {
+      showToast('Unauthorized: Admin authentication required to make changes.', 'error');
+      return false;
     }
-  }, [data]);
+
+    try {
+      const url = section ? `/api/portfolio/${section}` : '/api/portfolio';
+      const method = section ? 'PATCH' : 'PUT';
+      const body = section ? JSON.stringify(updatedData[section]) : JSON.stringify(updatedData);
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
+        body
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        showToast(errorData.error || 'Server error: Failed to save changes', 'error');
+        return false;
+      }
+
+      // Sync local cache
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedData));
+      return true;
+    } catch (err) {
+      console.error('Error saving data to server:', err);
+      showToast('Network error: Could not reach server.', 'error');
+      return false;
+    }
+  };
 
   const toggleTheme = () => {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
   };
 
   const toggleEditMode = () => {
+    if (!isAuthenticated) {
+      showToast('Admin authentication required.', 'error');
+      return;
+    }
     setEditMode(prev => {
       const next = !prev;
-      showToast(next ? 'Edit Mode Activated! Customize your portfolio anytime.' : 'Edit Mode Deactivated.');
+      showToast(next ? 'Inline Edit Mode Activated!' : 'Inline Edit Mode Deactivated.');
       return next;
     });
   };
 
-  // Hero update
-  const updateHero = (heroData) => {
-    setData(prev => ({
-      ...prev,
-      hero: { ...prev.hero, ...heroData }
-    }));
-    showToast('Hero section updated!');
+  const activateEditMode = () => {
+    setEditMode(true);
   };
 
-  // Contact Details Update (Synchronizes contact and hero.social)
-  const updateContactDetails = (contactObj) => {
-    setData(prev => ({
-      ...prev,
+  const exitEditMode = () => {
+    setEditMode(false);
+    setEditModalConfig({ isOpen: false, type: null, data: null });
+  };
+
+  // Upload file to server
+  const uploadFile = async (file) => {
+    if (!isAuthenticated) {
+      showToast('Unauthorized: Admin authentication required to upload files.', 'error');
+      return null;
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders()
+        },
+        body: formData
+      });
+
+      const resData = await res.json();
+      if (!res.ok) {
+        showToast(resData.error || 'File upload failed', 'error');
+        return null;
+      }
+
+      showToast(`File "${resData.fileName}" uploaded successfully!`);
+      return resData;
+    } catch (err) {
+      console.error('Upload error:', err);
+      showToast('Network error during file upload', 'error');
+      return null;
+    }
+  };
+
+  // Hero update
+  const updateHero = async (heroData) => {
+    const nextData = {
+      ...data,
+      hero: { ...data.hero, ...heroData }
+    };
+    const success = await persistToServer(nextData, 'hero');
+    if (success) {
+      setData(nextData);
+      showToast('Hero section updated & saved!');
+    }
+  };
+
+  // Contact Details Update
+  const updateContactDetails = async (contactObj) => {
+    const nextData = {
+      ...data,
       contact: {
-        ...prev.contact,
+        ...data.contact,
         ...contactObj
       },
       hero: {
-        ...prev.hero,
-        location: contactObj.location !== undefined ? contactObj.location : prev.hero.location,
+        ...data.hero,
+        location: contactObj.location !== undefined ? contactObj.location : data.hero.location,
         social: {
-          ...prev.hero.social,
-          email: contactObj.email !== undefined ? contactObj.email : prev.hero.social.email,
-          phone: contactObj.phone !== undefined ? contactObj.phone : prev.hero.social.phone,
-          linkedin: contactObj.linkedin !== undefined ? contactObj.linkedin : prev.hero.social.linkedin,
-          github: contactObj.github !== undefined ? contactObj.github : prev.hero.social.github
+          ...data.hero.social,
+          email: contactObj.email !== undefined ? contactObj.email : data.hero.social.email,
+          phone: contactObj.phone !== undefined ? contactObj.phone : data.hero.social.phone,
+          linkedin: contactObj.linkedin !== undefined ? contactObj.linkedin : data.hero.social.linkedin,
+          github: contactObj.github !== undefined ? contactObj.github : data.hero.social.github
         }
       }
-    }));
-    showToast('Contact details saved!');
+    };
+    const success = await persistToServer(nextData);
+    if (success) {
+      setData(nextData);
+      showToast('Contact details saved successfully!');
+    }
   };
 
   // About update
-  const updateAbout = (aboutData) => {
-    setData(prev => ({
-      ...prev,
-      about: { ...prev.about, ...aboutData }
-    }));
-    showToast('About Me section updated!');
+  const updateAbout = async (aboutData) => {
+    const nextData = {
+      ...data,
+      about: { ...data.about, ...aboutData }
+    };
+    const success = await persistToServer(nextData, 'about');
+    if (success) {
+      setData(nextData);
+      showToast('About Me section saved!');
+    }
   };
 
   // About Interests CRUD
-  const addInterest = (interest) => {
+  const addInterest = async (interest) => {
     if (!interest) return;
-    setData(prev => ({
-      ...prev,
+    const currentInterests = data.about?.interests || [];
+    if (currentInterests.includes(interest)) return;
+
+    const nextData = {
+      ...data,
       about: {
-        ...prev.about,
-        interests: prev.about.interests.includes(interest)
-          ? prev.about.interests
-          : [...prev.about.interests, interest]
+        ...data.about,
+        interests: [...currentInterests, interest]
       }
-    }));
-    showToast(`Added interest: "${interest}"`);
+    };
+    const success = await persistToServer(nextData, 'about');
+    if (success) {
+      setData(nextData);
+      showToast(`Added interest: "${interest}"`);
+    }
   };
 
-  const removeInterest = (interest) => {
-    setData(prev => ({
-      ...prev,
+  const removeInterest = async (interest) => {
+    const currentInterests = data.about?.interests || [];
+    const nextData = {
+      ...data,
       about: {
-        ...prev.about,
-        interests: prev.about.interests.filter(i => i !== interest)
+        ...data.about,
+        interests: currentInterests.filter(i => i !== interest)
       }
-    }));
-    showToast(`Removed interest: "${interest}"`);
+    };
+    const success = await persistToServer(nextData, 'about');
+    if (success) {
+      setData(nextData);
+      showToast(`Removed interest: "${interest}"`);
+    }
   };
 
   // About Highlights CRUD
-  const saveHighlightCard = (highlightObj) => {
-    setData(prev => {
-      const existing = prev.about.highlights || [];
-      const index = existing.findIndex(h => h.id === highlightObj.id);
-      let updated = [...existing];
-      if (index >= 0) updated[index] = highlightObj;
-      else updated.push(highlightObj);
-      return {
-        ...prev,
-        about: { ...prev.about, highlights: updated }
-      };
-    });
-    showToast('Highlight card saved!');
+  const saveHighlightCard = async (highlightObj) => {
+    const existing = data.about?.highlights || [];
+    const index = existing.findIndex(h => h.id === highlightObj.id);
+    let updated = [...existing];
+    if (index >= 0) updated[index] = highlightObj;
+    else updated.push(highlightObj);
+
+    const nextData = {
+      ...data,
+      about: { ...data.about, highlights: updated }
+    };
+    const success = await persistToServer(nextData, 'about');
+    if (success) {
+      setData(nextData);
+      showToast('Highlight card saved!');
+    }
   };
 
-  const deleteHighlightCard = (id) => {
-    setData(prev => ({
-      ...prev,
+  const deleteHighlightCard = async (id) => {
+    const existing = data.about?.highlights || [];
+    const nextData = {
+      ...data,
       about: {
-        ...prev.about,
-        highlights: (prev.about.highlights || []).filter(h => h.id !== id)
+        ...data.about,
+        highlights: existing.filter(h => h.id !== id)
       }
-    }));
-    showToast('Highlight card deleted.');
+    };
+    const success = await persistToServer(nextData, 'about');
+    if (success) {
+      setData(nextData);
+      showToast('Highlight card deleted.');
+    }
   };
 
   // TECHNICAL SKILLS CRUD
-  const updateAllSkillCategories = (newCategories) => {
-    setData(prev => ({
-      ...prev,
+  const updateAllSkillCategories = async (newCategories) => {
+    const nextData = {
+      ...data,
       skills: {
-        ...prev.skills,
+        ...data.skills,
         categories: newCategories
       }
-    }));
-    showToast('Technical Skills updated & saved successfully!');
+    };
+    const success = await persistToServer(nextData, 'skills');
+    if (success) {
+      setData(nextData);
+      showToast('Technical Skills updated & saved!');
+    }
   };
 
-  const addSkillCategory = (categoryData) => {
+  const addSkillCategory = async (categoryData) => {
     const name = typeof categoryData === 'string' ? categoryData : categoryData.name;
     const desc = typeof categoryData === 'object' ? categoryData.description || '' : '';
     const icon = typeof categoryData === 'object' ? categoryData.icon || 'Code' : 'Code';
@@ -203,251 +346,345 @@ export const PortfolioProvider = ({ children }) => {
       skills: []
     };
 
-    setData(prev => ({
-      ...prev,
+    const nextData = {
+      ...data,
       skills: {
-        categories: [...prev.skills.categories, newCat]
+        ...data.skills,
+        categories: [...(data.skills?.categories || []), newCat]
       }
-    }));
-    showToast(`Skill Category "${name}" added!`);
+    };
+    const success = await persistToServer(nextData, 'skills');
+    if (success) {
+      setData(nextData);
+      showToast(`Skill Category "${name}" added!`);
+    }
   };
 
-  const updateSkillCategory = (categoryId, updatedObj) => {
-    setData(prev => ({
-      ...prev,
-      skills: {
-        categories: prev.skills.categories.map(c => {
-          if (c.id === categoryId) {
-            return { ...c, ...updatedObj };
-          }
-          return c;
-        })
+  const updateSkillCategory = async (categoryId, updatedObj) => {
+    const nextCategories = (data.skills?.categories || []).map(c => {
+      if (c.id === categoryId) {
+        return { ...c, ...updatedObj };
       }
-    }));
-    showToast('Category updated!');
-  };
-
-  const removeSkillCategory = (categoryId) => {
-    setData(prev => ({
-      ...prev,
-      skills: {
-        categories: prev.skills.categories.filter(c => c.id !== categoryId)
-      }
-    }));
-    showToast('Skill Category deleted.');
-  };
-
-  const reorderSkillCategories = (fromIndex, toIndex) => {
-    setData(prev => {
-      const list = [...prev.skills.categories];
-      if (fromIndex < 0 || fromIndex >= list.length || toIndex < 0 || toIndex >= list.length) {
-        return prev;
-      }
-      const [moved] = list.splice(fromIndex, 1);
-      list.splice(toIndex, 0, moved);
-      return {
-        ...prev,
-        skills: { ...prev.skills, categories: list }
-      };
+      return c;
     });
+
+    const nextData = {
+      ...data,
+      skills: {
+        ...data.skills,
+        categories: nextCategories
+      }
+    };
+    const success = await persistToServer(nextData, 'skills');
+    if (success) {
+      setData(nextData);
+      showToast('Category updated!');
+    }
   };
 
-  const addSkillToCategory = (categoryId, skillInput) => {
-    setData(prev => ({
-      ...prev,
+  const removeSkillCategory = async (categoryId) => {
+    const nextCategories = (data.skills?.categories || []).filter(c => c.id !== categoryId);
+    const nextData = {
+      ...data,
       skills: {
-        categories: prev.skills.categories.map(c => {
-          if (c.id === categoryId) {
-            const currentSkills = Array.isArray(c.skills) ? c.skills : [];
-            return { ...c, skills: [...currentSkills, skillInput] };
-          }
-          return c;
-        })
+        ...data.skills,
+        categories: nextCategories
       }
-    }));
-    const skillName = typeof skillInput === 'string' ? skillInput : skillInput.name;
-    showToast(`Skill "${skillName}" added!`);
+    };
+    const success = await persistToServer(nextData, 'skills');
+    if (success) {
+      setData(nextData);
+      showToast('Skill Category deleted.');
+    }
   };
 
-  const updateSkillInCategory = (categoryId, skillIndex, updatedSkill) => {
-    setData(prev => ({
-      ...prev,
-      skills: {
-        categories: prev.skills.categories.map(c => {
-          if (c.id === categoryId) {
-            const updatedList = [...c.skills];
-            updatedList[skillIndex] = updatedSkill;
-            return { ...c, skills: updatedList };
-          }
-          return c;
-        })
-      }
-    }));
-    showToast('Skill updated!');
+  const reorderSkillCategories = async (fromIndex, toIndex) => {
+    const list = [...(data.skills?.categories || [])];
+    if (fromIndex < 0 || fromIndex >= list.length || toIndex < 0 || toIndex >= list.length) {
+      return;
+    }
+    const [moved] = list.splice(fromIndex, 1);
+    list.splice(toIndex, 0, moved);
+
+    const nextData = {
+      ...data,
+      skills: { ...data.skills, categories: list }
+    };
+    const success = await persistToServer(nextData, 'skills');
+    if (success) {
+      setData(nextData);
+    }
   };
 
-  const removeSkillFromCategory = (categoryId, skillIndexOrName) => {
-    setData(prev => ({
-      ...prev,
-      skills: {
-        categories: prev.skills.categories.map(c => {
-          if (c.id === categoryId) {
-            let filtered;
-            if (typeof skillIndexOrName === 'number') {
-              filtered = c.skills.filter((_, idx) => idx !== skillIndexOrName);
-            } else {
-              filtered = c.skills.filter(s => (typeof s === 'string' ? s : s.name) !== skillIndexOrName);
-            }
-            return { ...c, skills: filtered };
-          }
-          return c;
-        })
+  const addSkillToCategory = async (categoryId, skillInput) => {
+    const nextCategories = (data.skills?.categories || []).map(c => {
+      if (c.id === categoryId) {
+        const currentSkills = Array.isArray(c.skills) ? c.skills : [];
+        return { ...c, skills: [...currentSkills, skillInput] };
       }
-    }));
-    showToast('Skill deleted.');
+      return c;
+    });
+
+    const nextData = {
+      ...data,
+      skills: {
+        ...data.skills,
+        categories: nextCategories
+      }
+    };
+    const success = await persistToServer(nextData, 'skills');
+    if (success) {
+      setData(nextData);
+      const skillName = typeof skillInput === 'string' ? skillInput : skillInput.name;
+      showToast(`Skill "${skillName}" added!`);
+    }
   };
 
-  const reorderSkillsInCategory = (categoryId, fromIndex, toIndex) => {
-    setData(prev => ({
-      ...prev,
-      skills: {
-        categories: prev.skills.categories.map(c => {
-          if (c.id === categoryId) {
-            const list = [...c.skills];
-            if (fromIndex < 0 || fromIndex >= list.length || toIndex < 0 || toIndex >= list.length) {
-              return c;
-            }
-            const [moved] = list.splice(fromIndex, 1);
-            list.splice(toIndex, 0, moved);
-            return { ...c, skills: list };
-          }
-          return c;
-        })
+  const updateSkillInCategory = async (categoryId, skillIndex, updatedSkill) => {
+    const nextCategories = (data.skills?.categories || []).map(c => {
+      if (c.id === categoryId) {
+        const updatedList = [...c.skills];
+        updatedList[skillIndex] = updatedSkill;
+        return { ...c, skills: updatedList };
       }
-    }));
+      return c;
+    });
+
+    const nextData = {
+      ...data,
+      skills: {
+        ...data.skills,
+        categories: nextCategories
+      }
+    };
+    const success = await persistToServer(nextData, 'skills');
+    if (success) {
+      setData(nextData);
+      showToast('Skill updated!');
+    }
+  };
+
+  const removeSkillFromCategory = async (categoryId, skillIndexOrName) => {
+    const nextCategories = (data.skills?.categories || []).map(c => {
+      if (c.id === categoryId) {
+        let filtered;
+        if (typeof skillIndexOrName === 'number') {
+          filtered = c.skills.filter((_, idx) => idx !== skillIndexOrName);
+        } else {
+          filtered = c.skills.filter(s => (typeof s === 'string' ? s : s.name) !== skillIndexOrName);
+        }
+        return { ...c, skills: filtered };
+      }
+      return c;
+    });
+
+    const nextData = {
+      ...data,
+      skills: {
+        ...data.skills,
+        categories: nextCategories
+      }
+    };
+    const success = await persistToServer(nextData, 'skills');
+    if (success) {
+      setData(nextData);
+      showToast('Skill deleted.');
+    }
+  };
+
+  const reorderSkillsInCategory = async (categoryId, fromIndex, toIndex) => {
+    const nextCategories = (data.skills?.categories || []).map(c => {
+      if (c.id === categoryId) {
+        const list = [...c.skills];
+        if (fromIndex < 0 || fromIndex >= list.length || toIndex < 0 || toIndex >= list.length) {
+          return c;
+        }
+        const [moved] = list.splice(fromIndex, 1);
+        list.splice(toIndex, 0, moved);
+        return { ...c, skills: list };
+      }
+      return c;
+    });
+
+    const nextData = {
+      ...data,
+      skills: {
+        ...data.skills,
+        categories: nextCategories
+      }
+    };
+    const success = await persistToServer(nextData, 'skills');
+    if (success) {
+      setData(nextData);
+    }
   };
 
   // Projects CRUD
-  const saveProject = (projectData) => {
-    setData(prev => {
-      const existingIndex = prev.projects.findIndex(p => p.id === projectData.id);
-      let updatedProjects = [...prev.projects];
+  const saveProject = async (projectData) => {
+    const existingIndex = (data.projects || []).findIndex(p => p.id === projectData.id);
+    let updatedProjects = [...(data.projects || [])];
 
-      if (existingIndex >= 0) {
-        updatedProjects[existingIndex] = projectData;
-      } else {
-        updatedProjects = [projectData, ...updatedProjects];
-      }
+    if (existingIndex >= 0) {
+      updatedProjects[existingIndex] = projectData;
+    } else {
+      updatedProjects = [projectData, ...updatedProjects];
+    }
 
-      return { ...prev, projects: updatedProjects };
-    });
-    showToast(`Project "${projectData.title}" saved!`);
+    const nextData = { ...data, projects: updatedProjects };
+    const success = await persistToServer(nextData, 'projects');
+    if (success) {
+      setData(nextData);
+      showToast(`Project "${projectData.title}" saved!`);
+    }
   };
 
-  const deleteProject = (projectId) => {
-    setData(prev => ({
-      ...prev,
-      projects: prev.projects.filter(p => p.id !== projectId)
-    }));
-    showToast('Project deleted.');
+  const deleteProject = async (projectId) => {
+    const updatedProjects = (data.projects || []).filter(p => p.id !== projectId);
+    const nextData = { ...data, projects: updatedProjects };
+    const success = await persistToServer(nextData, 'projects');
+    if (success) {
+      setData(nextData);
+      showToast('Project deleted.');
+    }
   };
 
   // Education CRUD
-  const saveEducation = (eduData) => {
-    setData(prev => {
-      const index = prev.education.findIndex(e => e.id === eduData.id);
-      let list = [...prev.education];
-      if (index >= 0) list[index] = eduData;
-      else list.push(eduData);
-      return { ...prev, education: list };
-    });
-    showToast('Education details saved!');
+  const saveEducation = async (eduData) => {
+    const index = (data.education || []).findIndex(e => e.id === eduData.id);
+    let list = [...(data.education || [])];
+    if (index >= 0) list[index] = eduData;
+    else list.push(eduData);
+
+    const nextData = { ...data, education: list };
+    const success = await persistToServer(nextData, 'education');
+    if (success) {
+      setData(nextData);
+      showToast('Education details saved!');
+    }
   };
 
-  const deleteEducation = (eduId) => {
-    setData(prev => ({
-      ...prev,
-      education: prev.education.filter(e => e.id !== eduId)
-    }));
-    showToast('Education entry deleted.');
+  const deleteEducation = async (eduId) => {
+    const list = (data.education || []).filter(e => e.id !== eduId);
+    const nextData = { ...data, education: list };
+    const success = await persistToServer(nextData, 'education');
+    if (success) {
+      setData(nextData);
+      showToast('Education entry deleted.');
+    }
   };
 
   // Certifications CRUD
-  const saveCertification = (certData) => {
-    setData(prev => {
-      const index = prev.certifications.findIndex(c => c.id === certData.id);
-      let list = [...prev.certifications];
-      if (index >= 0) list[index] = certData;
-      else list.push(certData);
-      return { ...prev, certifications: list };
-    });
-    showToast('Certification saved!');
+  const saveCertification = async (certData) => {
+    const index = (data.certifications || []).findIndex(c => c.id === certData.id);
+    let list = [...(data.certifications || [])];
+    if (index >= 0) list[index] = certData;
+    else list.push(certData);
+
+    const nextData = { ...data, certifications: list };
+    const success = await persistToServer(nextData, 'certifications');
+    if (success) {
+      setData(nextData);
+      showToast('Certification saved!');
+    }
   };
 
-  const deleteCertification = (certId) => {
-    setData(prev => ({
-      ...prev,
-      certifications: prev.certifications.filter(c => c.id !== certId)
-    }));
-    showToast('Certification deleted.');
+  const deleteCertification = async (certId) => {
+    const list = (data.certifications || []).filter(c => c.id !== certId);
+    const nextData = { ...data, certifications: list };
+    const success = await persistToServer(nextData, 'certifications');
+    if (success) {
+      setData(nextData);
+      showToast('Certification deleted.');
+    }
   };
 
   // Achievements CRUD
-  const saveAchievement = (achData) => {
-    setData(prev => {
-      const index = prev.achievements.findIndex(a => a.id === achData.id);
-      let list = [...prev.achievements];
-      if (index >= 0) list[index] = achData;
-      else list.push(achData);
-      return { ...prev, achievements: list };
-    });
-    showToast('Achievement saved!');
+  const saveAchievement = async (achData) => {
+    const index = (data.achievements || []).findIndex(a => a.id === achData.id);
+    let list = [...(data.achievements || [])];
+    if (index >= 0) list[index] = achData;
+    else list.push(achData);
+
+    const nextData = { ...data, achievements: list };
+    const success = await persistToServer(nextData, 'achievements');
+    if (success) {
+      setData(nextData);
+      showToast('Achievement saved!');
+    }
   };
 
-  const deleteAchievement = (achId) => {
-    setData(prev => ({
-      ...prev,
-      achievements: prev.achievements.filter(a => a.id !== achId)
-    }));
-    showToast('Achievement deleted.');
+  const deleteAchievement = async (achId) => {
+    const list = (data.achievements || []).filter(a => a.id !== achId);
+    const nextData = { ...data, achievements: list };
+    const success = await persistToServer(nextData, 'achievements');
+    if (success) {
+      setData(nextData);
+      showToast('Achievement deleted.');
+    }
   };
 
   // Currently Exploring / Learning CRUD
-  const saveLearningItem = (item) => {
-    setData(prev => {
-      const existing = prev.exploring || [];
-      const index = existing.findIndex(e => e.id === item.id);
-      let updated = [...existing];
-      if (index >= 0) updated[index] = item;
-      else updated.push(item);
-      return { ...prev, exploring: updated };
-    });
-    showToast('Learning item saved!');
+  const saveLearningItem = async (item) => {
+    const existing = data.exploring || [];
+    const index = existing.findIndex(e => e.id === item.id);
+    let updated = [...existing];
+    if (index >= 0) updated[index] = item;
+    else updated.push(item);
+
+    const nextData = { ...data, exploring: updated };
+    const success = await persistToServer(nextData, 'exploring');
+    if (success) {
+      setData(nextData);
+      showToast('Learning item saved!');
+    }
   };
 
-  const deleteLearningItem = (itemId) => {
-    setData(prev => ({
-      ...prev,
-      exploring: (prev.exploring || []).filter(e => e.id !== itemId)
-    }));
-    showToast('Learning item removed.');
+  const deleteLearningItem = async (itemId) => {
+    const updated = (data.exploring || []).filter(e => e.id !== itemId);
+    const nextData = { ...data, exploring: updated };
+    const success = await persistToServer(nextData, 'exploring');
+    if (success) {
+      setData(nextData);
+      showToast('Learning item removed.');
+    }
   };
 
-  // Resume Upload
-  const updateResume = (resumeData) => {
-    setData(prev => ({
-      ...prev,
-      resume: { ...prev.resume, ...resumeData }
-    }));
-    showToast('Resume updated successfully!');
+  // Resume Update
+  const updateResume = async (resumeData) => {
+    const nextData = {
+      ...data,
+      resume: { ...data.resume, ...resumeData }
+    };
+    const success = await persistToServer(nextData, 'resume');
+    if (success) {
+      setData(nextData);
+      showToast('Resume updated successfully!');
+    }
   };
 
-  // Reset to initial data
-  const resetToDefault = () => {
-    if (window.confirm('Reset all portfolio data to default for Suryavansh Thakur? All custom edits will be restored to original template.')) {
-      setData(initialPortfolioData);
-      localStorage.removeItem(STORAGE_KEY);
-      showToast('Portfolio reset to initial data.');
+  // Reset to initial data (protected)
+  const resetToDefault = async () => {
+    if (!isAuthenticated) {
+      showToast('Unauthorized: Admin authentication required.', 'error');
+      return;
+    }
+    if (window.confirm('Reset all portfolio data to default for Suryavansh Thakur? All custom edits will be restored.')) {
+      try {
+        const res = await fetch('/api/portfolio/reset', {
+          method: 'POST',
+          headers: getAuthHeaders()
+        });
+        if (res.ok) {
+          const resData = await res.json();
+          setData(resData.data);
+          localStorage.removeItem(STORAGE_KEY);
+          showToast('Portfolio reset to initial data.');
+        } else {
+          showToast('Failed to reset portfolio data', 'error');
+        }
+      } catch (e) {
+        showToast('Network error while resetting data', 'error');
+      }
     }
   };
 
@@ -467,12 +704,19 @@ export const PortfolioProvider = ({ children }) => {
 
   // Import JSON
   const importDataJSON = (file) => {
+    if (!isAuthenticated) {
+      showToast('Unauthorized: Admin authentication required to import data.', 'error');
+      return;
+    }
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const importedData = JSON.parse(event.target.result);
-        setData(importedData);
-        showToast('Portfolio data successfully imported!');
+        const success = await persistToServer(importedData);
+        if (success) {
+          setData(importedData);
+          showToast('Portfolio data successfully imported!');
+        }
       } catch (err) {
         showToast('Invalid JSON file format', 'error');
       }
@@ -486,6 +730,9 @@ export const PortfolioProvider = ({ children }) => {
         theme,
         toggleTheme,
         editMode,
+        setEditMode,
+        activateEditMode,
+        exitEditMode,
         toggleEditMode,
         isAdminDashboardOpen,
         setIsAdminDashboardOpen,
@@ -496,6 +743,8 @@ export const PortfolioProvider = ({ children }) => {
         setEditModalConfig,
         toast,
         showToast,
+        isLoadingData,
+        uploadFile,
         updateHero,
         updateContactDetails,
         updateAbout,

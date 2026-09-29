@@ -1,10 +1,10 @@
 import React from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
-import { Terminal, GraduationCap, Calendar, MapPin, Award, BookOpen, Plus, Edit2, Trash2, Building } from 'lucide-react';
+import { Terminal, GraduationCap, Calendar, MapPin, Award, BookOpen, Building, Plus, Pencil, Trash2 } from 'lucide-react';
 
 export const Education = () => {
   const { data, editMode, setEditModalConfig, deleteEducation } = usePortfolio();
-  const { education } = data;
+  const education = data.education || [];
 
   return (
     <section id="education" className="py-20 relative bg-grid-pattern">
@@ -24,19 +24,15 @@ export const Education = () => {
             </p>
           </div>
 
-          <button
-            onClick={() =>
-              setEditModalConfig({
-                isOpen: true,
-                type: 'education',
-                data: null
-              })
-            }
-            className="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 rounded-xl font-mono text-xs font-bold flex items-center gap-1.5 shadow-lg transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Education</span>
-          </button>
+          {editMode && (
+            <button
+              onClick={() => setEditModalConfig({ isOpen: true, type: 'education', data: null })}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400 border border-cyan-500/40 text-xs font-mono font-semibold transition-all"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Education</span>
+            </button>
+          )}
         </div>
 
         {/* Timeline List */}
@@ -81,7 +77,7 @@ export const Education = () => {
                     </div>
                   </div>
 
-                  {/* Actions & Dates */}
+                  {/* Dates & Actions */}
                   <div className="flex flex-col items-end gap-2">
                     {(item.startYear || item.endYear || item.expectedGraduation) && (
                       <div className="flex items-center gap-1.5 text-xs font-mono text-slate-400 bg-slate-800/60 light:bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-700/50 light:border-slate-300">
@@ -94,35 +90,33 @@ export const Education = () => {
                     )}
 
                     {editMode && (
-                      <div className="flex items-center gap-2 pt-1">
+                      <div className="flex items-center gap-1.5 mt-1">
                         <button
-                          onClick={() =>
-                            setEditModalConfig({
-                              isOpen: true,
-                              type: 'education',
-                              data: item
-                            })
-                          }
-                          className="p-1.5 text-cyan-400 hover:text-cyan-300 rounded-lg hover:bg-slate-800"
+                          onClick={() => setEditModalConfig({ isOpen: true, type: 'education', data: item })}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 text-xs font-mono font-medium transition-all"
+                          title="Edit education entry"
                         >
-                          <Edit2 className="w-4 h-4" />
+                          <Pencil className="w-3 h-3" />
+                          <span>Edit</span>
                         </button>
                         <button
                           onClick={() => {
-                            if (window.confirm('Delete education entry?')) {
+                            if (window.confirm(`Delete education entry "${item.degree}"?`)) {
                               deleteEducation(item.id);
                             }
                           }}
-                          className="p-1.5 text-rose-400 hover:text-rose-300 rounded-lg hover:bg-slate-800"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 text-xs font-mono font-medium transition-all"
+                          title="Delete education entry"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3 h-3" />
+                          <span>Delete</span>
                         </button>
                       </div>
                     )}
                   </div>
                 </div>
 
-                {/* CGPA / Percentage Badge (Only rendered if present!) */}
+                {/* CGPA / Percentage Badge */}
                 {item.cgpa && item.cgpa.trim() !== '' && (
                   <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-xs font-bold">
                     <Award className="w-3.5 h-3.5" />
@@ -130,14 +124,14 @@ export const Education = () => {
                   </div>
                 )}
 
-                {/* Description (Only rendered if present!) */}
+                {/* Description */}
                 {item.description && item.description.trim() !== '' && (
                   <p className="mt-4 text-xs sm:text-sm text-slate-300 light:text-slate-600 leading-relaxed">
                     {item.description}
                   </p>
                 )}
 
-                {/* Relevant Coursework (Only rendered if non-empty!) */}
+                {/* Relevant Coursework */}
                 {item.relevantCoursework && item.relevantCoursework.length > 0 && (
                   <div className="mt-5 pt-4 border-t border-slate-800/80 light:border-slate-200">
                     <p className="text-xs font-mono uppercase text-slate-400 mb-2 flex items-center gap-1.5 font-bold">
@@ -157,7 +151,7 @@ export const Education = () => {
                   </div>
                 )}
 
-                {/* Achievements (Only rendered if present!) */}
+                {/* Achievements */}
                 {item.achievements && item.achievements.trim() !== '' && (
                   <p className="mt-4 text-xs text-slate-400 light:text-slate-500 italic border-l-2 border-cyan-500/40 pl-3 py-0.5">
                     {item.achievements}

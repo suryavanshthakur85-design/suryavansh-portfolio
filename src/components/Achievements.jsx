@@ -1,10 +1,10 @@
 import React from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
-import { Terminal, Trophy, ExternalLink, Calendar, Plus, Edit2, Trash2, Award, Sparkles } from 'lucide-react';
+import { Terminal, Trophy, ExternalLink, Calendar, Plus, Pencil, Trash2 } from 'lucide-react';
 
 export const Achievements = () => {
   const { data, editMode, setEditModalConfig, deleteAchievement } = usePortfolio();
-  const { achievements } = data;
+  const achievements = data.achievements || [];
 
   return (
     <section id="achievements" className="py-20 relative bg-grid-pattern">
@@ -24,19 +24,15 @@ export const Achievements = () => {
             </p>
           </div>
 
-          <button
-            onClick={() =>
-              setEditModalConfig({
-                isOpen: true,
-                type: 'achievement',
-                data: null
-              })
-            }
-            className="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 rounded-xl font-mono text-xs font-bold flex items-center gap-1.5 shadow-lg transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Achievement</span>
-          </button>
+          {editMode && (
+            <button
+              onClick={() => setEditModalConfig({ isOpen: true, type: 'achievement', data: null })}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400 border border-cyan-500/40 text-xs font-mono font-semibold transition-all shadow-sm"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Achievement</span>
+            </button>
+          )}
         </div>
 
         {/* Achievements Grid */}
@@ -65,16 +61,11 @@ export const Achievements = () => {
                   {editMode && (
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() =>
-                          setEditModalConfig({
-                            isOpen: true,
-                            type: 'achievement',
-                            data: item
-                          })
-                        }
-                        className="p-1.5 text-cyan-400 hover:text-cyan-300 rounded-lg hover:bg-slate-800"
+                        onClick={() => setEditModalConfig({ isOpen: true, type: 'achievement', data: item })}
+                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 border border-slate-700 text-xs transition-colors"
+                        title="Edit Achievement"
                       >
-                        <Edit2 className="w-4 h-4" />
+                        <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => {
@@ -82,18 +73,21 @@ export const Achievements = () => {
                             deleteAchievement(item.id);
                           }
                         }}
-                        className="p-1.5 text-rose-400 hover:text-rose-300 rounded-lg hover:bg-slate-800"
+                        className="p-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 text-xs transition-colors"
+                        title="Delete Achievement"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   )}
                 </div>
 
-                <div className="flex items-center gap-2 text-xs font-mono text-slate-400 mb-4">
-                  <Calendar className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>{item.date}</span>
-                </div>
+                {item.date && (
+                  <div className="flex items-center gap-2 text-xs font-mono text-slate-400 mb-4">
+                    <Calendar className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>{item.date}</span>
+                  </div>
+                )}
 
                 <p className="text-xs sm:text-sm text-slate-300 light:text-slate-600 leading-relaxed">
                   {item.description}
@@ -128,7 +122,7 @@ export const Achievements = () => {
 
           {achievements.length === 0 && (
             <div className="col-span-full p-8 rounded-2xl bg-slate-900/40 border border-dashed border-slate-800 text-center text-slate-400 text-xs font-mono">
-              No achievements added yet. Click "Add Achievement" to add your hackathon or contest achievements!
+              Achievements and contest milestones will be showcased here.
             </div>
           )}
         </div>

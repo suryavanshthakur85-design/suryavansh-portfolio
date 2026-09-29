@@ -1,10 +1,10 @@
 import React from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
-import { Terminal, Compass, Plus, Trash2, Edit2, Sparkles, BookOpen } from 'lucide-react';
+import { Compass, Plus, Pencil, Trash2 } from 'lucide-react';
 
 export const Exploring = () => {
   const { data, editMode, setEditModalConfig, deleteLearningItem } = usePortfolio();
-  const { exploring } = data;
+  const exploring = data.exploring || [];
 
   return (
     <section className="py-16 relative bg-slate-900/60 light:bg-slate-50 border-t border-slate-800/60 light:border-slate-200">
@@ -31,19 +31,15 @@ export const Exploring = () => {
                 </div>
               </div>
 
-              <button
-                onClick={() =>
-                  setEditModalConfig({
-                    isOpen: true,
-                    type: 'learning',
-                    data: null
-                  })
-                }
-                className="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-mono text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-lg"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add Learning Item</span>
-              </button>
+              {editMode && (
+                <button
+                  onClick={() => setEditModalConfig({ isOpen: true, type: 'learning', data: null })}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400 border border-cyan-500/40 text-xs font-mono font-semibold transition-all shadow-sm"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Learning Item</span>
+                </button>
+              )}
             </div>
 
             <p className="text-xs sm:text-sm text-slate-300 light:text-slate-600 max-w-3xl leading-relaxed">
@@ -71,25 +67,25 @@ export const Exploring = () => {
                             {status}
                           </span>
 
-                          {editMode && isObject && (
+                          {editMode && (
                             <div className="flex items-center gap-1">
                               <button
-                                onClick={() =>
-                                  setEditModalConfig({
-                                    isOpen: true,
-                                    type: 'learning',
-                                    data: item
-                                  })
-                                }
-                                className="p-1 text-cyan-400 hover:text-cyan-300"
+                                onClick={() => setEditModalConfig({ isOpen: true, type: 'learning', data: item })}
+                                className="p-1 rounded-md bg-slate-900/80 hover:bg-slate-700 text-cyan-400 border border-slate-700 text-xs transition-colors"
+                                title="Edit"
                               >
-                                <Edit2 className="w-3.5 h-3.5" />
+                                <Pencil className="w-3 h-3" />
                               </button>
                               <button
-                                onClick={() => deleteLearningItem(item.id)}
-                                className="p-1 text-rose-400 hover:text-rose-300"
+                                onClick={() => {
+                                  if (window.confirm(`Delete "${name}"?`)) {
+                                    deleteLearningItem(id);
+                                  }
+                                }}
+                                className="p-1 rounded-md bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 text-xs transition-colors"
+                                title="Delete"
                               >
-                                <Trash2 className="w-3.5 h-3.5" />
+                                <Trash2 className="w-3 h-3" />
                               </button>
                             </div>
                           )}

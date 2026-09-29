@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
 import {
   Github,
@@ -7,29 +7,17 @@ import {
   Phone,
   ArrowRight,
   Download,
-  Camera,
-  Edit2,
-  Terminal
+  Terminal,
+  MapPin,
+  Pencil
 } from 'lucide-react';
 
 export const Hero = () => {
-  const { data, editMode, setEditModalConfig, updateHero } = usePortfolio();
+  const { data, editMode, setEditModalConfig } = usePortfolio();
   const { hero } = data;
-  const fileInputRef = useRef(null);
-
-  const handlePhotoUpload = (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (uploadEvent) => {
-        updateHero({ avatarUrl: uploadEvent.target.result });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   const handleDownloadResumeClick = () => {
-    if (data.resume.resumeUrl) {
+    if (data.resume?.resumeUrl) {
       const link = document.createElement('a');
       link.href = data.resume.resumeUrl;
       link.download = data.resume.fileName || 'Suryavansh_Thakur_Resume.pdf';
@@ -74,22 +62,6 @@ export const Hero = () => {
               <p className="mt-2 text-xl sm:text-2xl font-bold font-mono bg-gradient-to-r from-cyan-400 to-indigo-400 bg-clip-text text-transparent">
                 {hero.tagline || 'B.Tech CSE | Computer Science & Engineering'}
               </p>
-
-              {editMode && (
-                <button
-                  onClick={() =>
-                    setEditModalConfig({
-                      isOpen: true,
-                      type: 'hero',
-                      data: hero
-                    })
-                  }
-                  className="absolute -top-3 right-0 p-1.5 bg-cyan-500 text-slate-950 rounded-full shadow-lg hover:scale-110 transition-transform"
-                  title="Edit Hero Title & Intro"
-                >
-                  <Edit2 className="w-4 h-4" />
-                </button>
-              )}
             </div>
 
             {/* Main Short Introduction */}
@@ -129,7 +101,18 @@ export const Hero = () => {
                 Connect:
               </span>
 
-              {hero.social.github && (
+              {editMode && (
+                <button
+                  onClick={() => setEditModalConfig({ isOpen: true, type: 'hero', data: hero })}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400 border border-cyan-500/40 text-xs font-mono font-semibold transition-all shadow-sm"
+                  title="Edit Hero & Social Links"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  <span>Edit Profile & Social</span>
+                </button>
+              )}
+
+              {hero.social?.github && (
                 <a
                   href={hero.social.github}
                   target="_blank"
@@ -141,7 +124,7 @@ export const Hero = () => {
                 </a>
               )}
 
-              {hero.social.linkedin && (
+              {hero.social?.linkedin && (
                 <a
                   href={hero.social.linkedin}
                   target="_blank"
@@ -153,80 +136,58 @@ export const Hero = () => {
                 </a>
               )}
 
-              {hero.social.email && (
+              {hero.social?.email && (
                 <a
                   href={`mailto:${hero.social.email}`}
-                  className="p-2.5 rounded-lg bg-slate-800/80 light:bg-slate-100 text-slate-300 light:text-slate-700 hover:text-cyan-400 light:hover:text-cyan-600 hover:border-cyan-500/40 border border-slate-700/60 light:border-slate-300 transition-all flex items-center gap-2 text-xs font-mono"
-                  title="Email Direct"
+                  className="p-2.5 rounded-lg bg-slate-800/80 light:bg-slate-100 text-slate-300 light:text-slate-700 hover:text-cyan-400 light:hover:text-cyan-600 hover:border-cyan-500/40 border border-slate-700/60 light:border-slate-300 transition-all"
+                  title="Send Email"
                 >
                   <Mail className="w-4 h-4" />
-                  <span className="hidden sm:inline">{hero.social.email}</span>
                 </a>
               )}
 
-              {hero.social.phone && (
+              {hero.social?.phone && (
                 <a
                   href={`tel:${hero.social.phone}`}
-                  className="p-2.5 rounded-lg bg-slate-800/80 light:bg-slate-100 text-slate-300 light:text-slate-700 hover:text-cyan-400 light:hover:text-cyan-600 hover:border-cyan-500/40 border border-slate-700/60 light:border-slate-300 transition-all flex items-center gap-2 text-xs font-mono"
-                  title="Phone Number"
+                  className="p-2.5 rounded-lg bg-slate-800/80 light:bg-slate-100 text-slate-300 light:text-slate-700 hover:text-cyan-400 light:hover:text-cyan-600 hover:border-cyan-500/40 border border-slate-700/60 light:border-slate-300 transition-all"
+                  title="Call Phone"
                 >
                   <Phone className="w-4 h-4" />
-                  <span className="hidden sm:inline">{hero.social.phone}</span>
                 </a>
+              )}
+
+              {hero.location && (
+                <span className="flex items-center gap-1.5 text-xs font-mono text-slate-400 light:text-slate-500">
+                  <MapPin className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>{hero.location}</span>
+                </span>
               )}
             </div>
           </div>
 
-          {/* Right Column: Profile Photo Card */}
+          {/* Right Column: Profile Image / Card */}
           <div className="lg:col-span-5 flex justify-center">
             <div className="relative w-full max-w-md">
-              <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-cyan-500 to-indigo-500 opacity-30 blur-lg group-hover:opacity-50 transition duration-500"></div>
+              <div className="absolute -inset-1.5 bg-gradient-to-r from-cyan-500 to-indigo-500 rounded-3xl blur-xl opacity-30 animate-pulse"></div>
 
-              <div className="relative rounded-3xl bg-slate-900 light:bg-white border border-slate-800 light:border-slate-200 p-4 shadow-2xl overflow-hidden">
-                <div className="terminal-header mb-4">
-                  <div className="terminal-dot bg-rose-500"></div>
-                  <div className="terminal-dot bg-amber-500"></div>
-                  <div className="terminal-dot bg-emerald-500"></div>
-                  <span className="ml-2 font-mono text-xs text-slate-400">suryavansh_thakur.jpg</span>
-                </div>
-
-                <div className="relative aspect-square rounded-2xl bg-slate-800 light:bg-slate-100 overflow-hidden group flex items-center justify-center border border-slate-700 light:border-slate-200">
+              <div className="relative p-6 sm:p-8 rounded-3xl bg-slate-900/90 light:bg-white border border-slate-800 light:border-slate-200 shadow-2xl backdrop-blur-xl">
+                <div className="relative aspect-square rounded-2xl overflow-hidden bg-slate-800/80 light:bg-slate-100 border border-slate-700/50 light:border-slate-300 flex items-center justify-center group">
                   {hero.avatarUrl ? (
                     <img
                       src={hero.avatarUrl}
-                      alt="Suryavansh Thakur"
-                      className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+                      alt={hero.name || 'Suryavansh Thakur'}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   ) : (
-                    <div className="text-center p-6">
-                      <div className="w-24 h-24 mx-auto rounded-full bg-cyan-500/10 border-2 border-cyan-500/40 flex items-center justify-center text-cyan-400 font-mono text-3xl font-extrabold mb-3">
-                        ST
+                    <div className="flex flex-col items-center justify-center p-6 text-center space-y-3">
+                      <div className="w-24 h-24 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                        <Terminal className="w-12 h-12" />
                       </div>
-                      <p className="font-mono text-sm text-slate-300 light:text-slate-700 font-semibold">
-                        Suryavansh Thakur
-                      </p>
-                      <p className="text-xs text-slate-400 mt-1">B.Tech CSE Core Student</p>
+                      <div className="font-mono text-xs text-slate-400">
+                        <span className="text-cyan-400">&gt;</span> CSE Undergrad
+                      </div>
                     </div>
                   )}
-
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handlePhotoUpload}
-                    accept="image/*"
-                    className="hidden"
-                  />
-
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`absolute bottom-3 right-3 p-3 bg-slate-900/90 text-cyan-400 rounded-xl border border-cyan-500/50 shadow-xl backdrop-blur-md flex items-center gap-2 text-xs font-mono hover:bg-cyan-500 hover:text-slate-950 transition-all ${
-                      editMode ? 'opacity-100' : 'opacity-80 hover:opacity-100'
-                    }`}
-                    title="Upload or Change Profile Photo"
-                  >
-                    <Camera className="w-4 h-4" />
-                    <span>{hero.avatarUrl ? 'Change Photo' : 'Upload Photo'}</span>
-                  </button>
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-3 pt-2">

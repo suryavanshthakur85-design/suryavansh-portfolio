@@ -1,30 +1,31 @@
 import React, { useState } from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
 import {
-  Github,
   ExternalLink,
-  Plus,
-  Trash2,
-  Edit2,
-  Terminal,
-  FolderGit2,
-  Sparkles,
-  Calendar,
-  Layers,
+  Github,
   ArrowUpRight,
-  Code2
+  FolderGit2,
+  Terminal,
+  Code2,
+  Plus,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 
 export const Projects = () => {
-  const {
-    data,
-    editMode,
-    setActiveProject,
-    setEditModalConfig,
-    deleteProject
-  } = usePortfolio();
+  const { data, setActiveProject, editMode, setEditModalConfig, deleteProject } = usePortfolio();
+  const projects = data.projects || [];
+  const projectCategories = data.projectCategories || [
+    'All',
+    'Web Development',
+    'C/C++',
+    'Java',
+    'Python',
+    'AI/ML',
+    'Data',
+    'Other'
+  ];
 
-  const { projects, projectCategories } = data;
   const [selectedCategory, setSelectedCategory] = useState('All');
 
   // Filter projects by category
@@ -51,21 +52,15 @@ export const Projects = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          {editMode && (
             <button
-              onClick={() =>
-                setEditModalConfig({
-                  isOpen: true,
-                  type: 'project',
-                  data: null // New project
-                })
-              }
-              className="px-5 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 rounded-xl font-mono text-xs font-bold flex items-center gap-2 shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/40 transition-all transform hover:-translate-y-0.5"
+              onClick={() => setEditModalConfig({ isOpen: true, type: 'project', data: null })}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400 border border-cyan-500/40 text-xs font-mono font-semibold transition-all shadow-sm"
             >
-              <Plus className="w-4 h-4" />
-              <span>Add New Project</span>
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Project</span>
             </button>
-          </div>
+          )}
         </div>
 
         {/* Category Filters Bar */}
@@ -77,7 +72,7 @@ export const Projects = () => {
               className={`px-4 py-2 rounded-xl text-xs font-mono font-semibold whitespace-nowrap transition-all ${
                 selectedCategory === cat
                   ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
-                  : 'bg-slate-800/80 light:bg-white text-slate-300 light:text-slate-700 hover:bg-slate-700 light:hover:bg-slate-100 border border-slate-700/60 light:border-slate-300'
+                  : 'bg-slate-800/80 light:bg-slate-200/80 text-slate-300 light:text-slate-700 hover:bg-slate-700 light:hover:bg-slate-300'
               }`}
             >
               {cat}
@@ -85,15 +80,18 @@ export const Projects = () => {
           ))}
         </div>
 
-        {/* Projects Cards Grid */}
+        {/* Projects Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {filteredProjects.map((project) => (
             <div
               key={project.id}
-              className="group relative rounded-3xl bg-slate-900 light:bg-white border border-slate-800 light:border-slate-200 hover:border-cyan-500/50 transition-all duration-300 shadow-lg hover:shadow-2xl hover:shadow-cyan-500/10 flex flex-col overflow-hidden"
+              className="rounded-3xl bg-slate-900/90 light:bg-white border border-slate-800 light:border-slate-200 hover:border-cyan-500/50 transition-all duration-300 shadow-xl hover:shadow-2xl overflow-hidden flex flex-col group relative"
             >
-              {/* Project Card Thumbnail / Header Image */}
-              <div className="relative aspect-video bg-slate-950 overflow-hidden">
+              {/* Project Card Image Banner */}
+              <div
+                onClick={() => setActiveProject(project)}
+                className="relative aspect-video w-full overflow-hidden bg-slate-800/80 light:bg-slate-100 border-b border-slate-800 light:border-slate-200 cursor-pointer"
+              >
                 {project.image ? (
                   <img
                     src={project.image}
@@ -104,7 +102,7 @@ export const Projects = () => {
                   <div className="w-full h-full flex items-center justify-center bg-slate-850 p-6">
                     <div className="text-center">
                       <FolderGit2 className="w-12 h-12 mx-auto text-cyan-500/40 mb-2 group-hover:scale-110 transition-transform" />
-                      <span className="font-mono text-xs text-slate-500">No Image Uploaded</span>
+                      <span className="font-mono text-xs text-slate-500">Project Workspace</span>
                     </div>
                   </div>
                 )}
@@ -121,22 +119,18 @@ export const Projects = () => {
                   )}
                 </div>
 
-                {/* Admin Quick Action Controls */}
+                {/* Edit & Delete Controls on Card */}
                 {editMode && (
-                  <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-slate-950/90 backdrop-blur-md p-1 rounded-xl border border-slate-700">
+                  <div className="absolute top-3 right-3 flex items-center gap-1.5 z-10">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setEditModalConfig({
-                          isOpen: true,
-                          type: 'project',
-                          data: project
-                        });
+                        setEditModalConfig({ isOpen: true, type: 'project', data: project });
                       }}
-                      className="p-1.5 text-cyan-400 hover:text-cyan-300 rounded-lg hover:bg-slate-800"
-                      title="Edit project"
+                      className="p-1.5 rounded-lg bg-slate-900/90 hover:bg-slate-800 text-cyan-400 border border-slate-700 backdrop-blur-md transition-colors shadow-md"
+                      title="Edit Project"
                     >
-                      <Edit2 className="w-3.5 h-3.5" />
+                      <Pencil className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={(e) => {
@@ -145,8 +139,8 @@ export const Projects = () => {
                           deleteProject(project.id);
                         }
                       }}
-                      className="p-1.5 text-rose-400 hover:text-rose-300 rounded-lg hover:bg-slate-800"
-                      title="Delete project"
+                      className="p-1.5 rounded-lg bg-slate-900/90 hover:bg-rose-950 text-rose-400 border border-rose-500/40 backdrop-blur-md transition-colors shadow-md"
+                      title="Delete Project"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -240,26 +234,12 @@ export const Projects = () => {
 
               <div>
                 <h3 className="text-xl font-bold font-mono text-slate-100 light:text-slate-900">
-                  Ready to add your projects!
+                  Projects Coming Soon
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto mt-1">
-                  You haven't uploaded any projects under this category yet. Click below to add project title, descriptions, GitHub links, live demo links, and tech stack.
+                  Projects in this category will be showcased here soon.
                 </p>
               </div>
-
-              <button
-                onClick={() =>
-                  setEditModalConfig({
-                    isOpen: true,
-                    type: 'project',
-                    data: null
-                  })
-                }
-                className="px-6 py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-mono font-bold text-xs rounded-xl shadow-xl flex items-center gap-2 transition-transform hover:scale-105"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Upload Your First Project</span>
-              </button>
             </div>
           )}
         </div>

@@ -10,39 +10,24 @@ import {
   Send,
   CheckCircle2,
   AlertCircle,
-  Edit2,
-  Plus,
-  Trash2,
   ExternalLink,
-  Globe,
   MessageSquare,
-  X
+  Pencil
 } from 'lucide-react';
 
 export const Contact = () => {
-  const { data, editMode, updateContactDetails, showToast } = usePortfolio();
+  const { data, showToast, editMode, setEditModalConfig } = usePortfolio();
 
   // Extract contact & hero info cleanly
   const contactInfo = data.contact || {};
   const heroSocial = data.hero?.social || {};
 
-  const email = contactInfo.email !== undefined ? contactInfo.email : heroSocial.email || '';
-  const phone = contactInfo.phone !== undefined ? contactInfo.phone : heroSocial.phone || '';
-  const linkedin = contactInfo.linkedin !== undefined ? contactInfo.linkedin : heroSocial.linkedin || '';
-  const github = contactInfo.github !== undefined ? contactInfo.github : heroSocial.github || '';
-  const location = contactInfo.location !== undefined ? contactInfo.location : data.hero?.location || '';
+  const email = contactInfo.email !== undefined && contactInfo.email !== '' ? contactInfo.email : heroSocial.email || '';
+  const phone = contactInfo.phone !== undefined && contactInfo.phone !== '' ? contactInfo.phone : heroSocial.phone || '';
+  const linkedin = contactInfo.linkedin !== undefined && contactInfo.linkedin !== '' ? contactInfo.linkedin : heroSocial.linkedin || '';
+  const github = contactInfo.github !== undefined && contactInfo.github !== '' ? contactInfo.github : heroSocial.github || '';
+  const location = contactInfo.location !== undefined && contactInfo.location !== '' ? contactInfo.location : data.hero?.location || '';
   const additionalLinks = contactInfo.additionalLinks || [];
-
-  // Edit Modal State
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editForm, setEditForm] = useState({
-    email: '',
-    phone: '',
-    linkedin: '',
-    github: '',
-    location: '',
-    additionalLinks: []
-  });
 
   // Contact Form State
   const [formData, setFormData] = useState({
@@ -54,49 +39,6 @@ export const Contact = () => {
 
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
-
-  // Open Edit Contact Modal
-  const openEditContactModal = () => {
-    setEditForm({
-      email: email || '',
-      phone: phone || '',
-      linkedin: linkedin || '',
-      github: github || '',
-      location: location || '',
-      additionalLinks: [...additionalLinks]
-    });
-    setShowEditModal(true);
-  };
-
-  // Submit Edit Contact Form
-  const handleSaveContactSubmit = (e) => {
-    e.preventDefault();
-    updateContactDetails(editForm);
-    setShowEditModal(false);
-  };
-
-  // Custom Links Management in Modal
-  const handleAddCustomLink = () => {
-    setEditForm(prev => ({
-      ...prev,
-      additionalLinks: [...prev.additionalLinks, { label: '', url: '' }]
-    }));
-  };
-
-  const handleCustomLinkChange = (index, field, value) => {
-    setEditForm(prev => {
-      const updated = [...prev.additionalLinks];
-      updated[index] = { ...updated[index], [field]: value };
-      return { ...prev, additionalLinks: updated };
-    });
-  };
-
-  const handleRemoveCustomLink = (index) => {
-    setEditForm(prev => ({
-      ...prev,
-      additionalLinks: prev.additionalLinks.filter((_, i) => i !== index)
-    }));
-  };
 
   // Contact Form Validation
   const validateForm = () => {
@@ -139,7 +81,7 @@ export const Contact = () => {
     (additionalLinks && additionalLinks.length > 0);
 
   return (
-    <section id="contact" className="py-20 relative bg-slate-900/40 light:bg-slate-50 border-t border-slate-800/60 light:border-slate-200">
+    <section id="contact" className="py-20 relative bg-grid-pattern">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Section Header */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-12">
@@ -156,13 +98,15 @@ export const Contact = () => {
             </p>
           </div>
 
-          <button
-            onClick={openEditContactModal}
-            className="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 rounded-xl font-mono text-xs font-bold flex items-center gap-2 shadow-lg transition-colors"
-          >
-            <Edit2 className="w-4 h-4" />
-            <span>Edit Contact ✏️</span>
-          </button>
+          {editMode && (
+            <button
+              onClick={() => setEditModalConfig({ isOpen: true, type: 'contact', data: contactInfo })}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400 border border-cyan-500/40 text-xs font-mono font-semibold transition-all shadow-sm"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              <span>Edit Contact & Links</span>
+            </button>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
@@ -173,16 +117,6 @@ export const Contact = () => {
                 <h3 className="text-xl font-bold font-mono text-slate-100 light:text-slate-900">
                   Contact Information
                 </h3>
-
-                {editMode && (
-                  <button
-                    onClick={openEditContactModal}
-                    className="p-1.5 bg-slate-800 text-cyan-400 rounded-lg border border-slate-700 hover:bg-slate-700"
-                    title="Edit Contact Info"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                )}
               </div>
 
               <p className="text-xs sm:text-sm text-slate-300 light:text-slate-600 leading-relaxed">
@@ -225,9 +159,47 @@ export const Contact = () => {
                   </a>
                 )}
 
+                {linkedin && linkedin.trim() !== '' && (
+                  <a
+                    href={linkedin}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-4 p-4 rounded-2xl bg-slate-800/60 light:bg-slate-50 border border-slate-700/50 light:border-slate-200 hover:border-cyan-500/50 transition-all group"
+                  >
+                    <div className="p-3 rounded-xl bg-indigo-500/10 text-indigo-400 group-hover:bg-indigo-500 group-hover:text-slate-950 transition-colors">
+                      <Linkedin className="w-5 h-5" />
+                    </div>
+                    <div className="overflow-hidden">
+                      <p className="text-[10px] font-mono uppercase text-slate-400">LinkedIn</p>
+                      <p className="text-xs sm:text-sm font-bold font-mono text-slate-100 light:text-slate-800 truncate">
+                        {linkedin.replace('https://', '')}
+                      </p>
+                    </div>
+                  </a>
+                )}
+
+                {github && github.trim() !== '' && (
+                  <a
+                    href={github}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-4 p-4 rounded-2xl bg-slate-800/60 light:bg-slate-50 border border-slate-700/50 light:border-slate-200 hover:border-cyan-500/50 transition-all group"
+                  >
+                    <div className="p-3 rounded-xl bg-slate-700/30 text-slate-300 group-hover:bg-cyan-500 group-hover:text-slate-950 transition-colors">
+                      <Github className="w-5 h-5" />
+                    </div>
+                    <div className="overflow-hidden">
+                      <p className="text-[10px] font-mono uppercase text-slate-400">GitHub</p>
+                      <p className="text-xs sm:text-sm font-bold font-mono text-slate-100 light:text-slate-800 truncate">
+                        {github.replace('https://', '')}
+                      </p>
+                    </div>
+                  </a>
+                )}
+
                 {location && location.trim() !== '' && (
-                  <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-800/60 light:bg-slate-50 border border-slate-700/50 light:border-slate-200">
-                    <div className="p-3 rounded-xl bg-amber-500/10 text-amber-400">
+                  <div className="flex items-center gap-4 p-4 rounded-2xl bg-slate-800/40 light:bg-slate-50 border border-slate-700/40 light:border-slate-200">
+                    <div className="p-3 rounded-xl bg-cyan-500/10 text-cyan-400">
                       <MapPin className="w-5 h-5" />
                     </div>
                     <div>
@@ -239,104 +211,63 @@ export const Contact = () => {
                   </div>
                 )}
 
-                {github && github.trim() !== '' && (
-                  <a
-                    href={github}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-4 p-4 rounded-2xl bg-slate-800/60 light:bg-slate-50 border border-slate-700/50 light:border-slate-200 hover:border-cyan-500/50 transition-all group"
-                  >
-                    <div className="p-3 rounded-xl bg-slate-700/50 text-slate-200 group-hover:bg-cyan-500 group-hover:text-slate-950 transition-colors">
-                      <Github className="w-5 h-5" />
-                    </div>
-                    <div className="overflow-hidden">
-                      <p className="text-[10px] font-mono uppercase text-slate-400">GitHub Profile</p>
-                      <p className="text-xs sm:text-sm font-bold font-mono text-slate-100 light:text-slate-800 truncate">
-                        {github.replace('https://', '')}
-                      </p>
-                    </div>
-                  </a>
-                )}
-
-                {linkedin && linkedin.trim() !== '' && (
-                  <a
-                    href={linkedin}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center gap-4 p-4 rounded-2xl bg-slate-800/60 light:bg-slate-50 border border-slate-700/50 light:border-slate-200 hover:border-cyan-500/50 transition-all group"
-                  >
-                    <div className="p-3 rounded-xl bg-indigo-500/10 text-indigo-400 group-hover:bg-cyan-500 group-hover:text-slate-950 transition-colors">
-                      <Linkedin className="w-5 h-5" />
-                    </div>
-                    <div className="overflow-hidden">
-                      <p className="text-[10px] font-mono uppercase text-slate-400">LinkedIn Profile</p>
-                      <p className="text-xs sm:text-sm font-bold font-mono text-slate-100 light:text-slate-800 truncate">
-                        {linkedin.replace('https://', '')}
-                      </p>
-                    </div>
-                  </a>
-                )}
-
-                {/* Additional Custom Social Links */}
-                {additionalLinks &&
-                  additionalLinks.map((link, lIdx) => {
-                    if (!link.url || !link.url.trim()) return null;
-                    return (
+                {/* Additional Links */}
+                {additionalLinks && additionalLinks.length > 0 && (
+                  <div className="pt-2 flex flex-wrap gap-2">
+                    {additionalLinks.map((linkItem, idx) => (
                       <a
-                        key={lIdx}
-                        href={link.url}
+                        key={idx}
+                        href={linkItem.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex items-center gap-4 p-4 rounded-2xl bg-slate-800/60 light:bg-slate-50 border border-slate-700/50 light:border-slate-200 hover:border-cyan-500/50 transition-all group"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 light:bg-slate-100 border border-slate-700 text-xs font-mono text-slate-300 hover:text-cyan-400 transition-colors"
                       >
-                        <div className="p-3 rounded-xl bg-purple-500/10 text-purple-400 group-hover:bg-cyan-500 group-hover:text-slate-950 transition-colors">
-                          <Globe className="w-5 h-5" />
-                        </div>
-                        <div className="overflow-hidden">
-                          <p className="text-[10px] font-mono uppercase text-slate-400">
-                            {link.label || 'Social Link'}
-                          </p>
-                          <p className="text-xs sm:text-sm font-bold font-mono text-slate-100 light:text-slate-800 truncate">
-                            {link.url.replace('https://', '')}
-                          </p>
-                        </div>
+                        <span>{linkItem.label}</span>
+                        <ExternalLink className="w-3 h-3 text-cyan-400" />
                       </a>
-                    );
-                  })}
+                    ))}
+                  </div>
+                )}
 
+                {/* Fallback if no direct contacts entered */}
                 {!hasContactInfo && (
-                  <div className="p-6 rounded-2xl bg-slate-800/40 border border-dashed border-slate-700 text-center space-y-2">
-                    <MessageSquare className="w-8 h-8 mx-auto text-cyan-400/50" />
+                  <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/40 text-center">
                     <p className="text-xs font-mono text-slate-400">
-                      No direct contact details uploaded yet.
+                      Please use the contact form on the right to send a direct message.
                     </p>
-                    <button
-                      onClick={openEditContactModal}
-                      className="px-4 py-2 bg-cyan-500 text-slate-950 font-mono text-xs font-bold rounded-xl"
-                    >
-                      + Enter Contact Details
-                    </button>
                   </div>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Right Column: Validated Contact Form */}
+          {/* Right Column: Interactive Send Message Form */}
           <div className="lg:col-span-7">
-            <div className="p-8 sm:p-10 rounded-3xl bg-slate-900 light:bg-white border border-slate-800 light:border-slate-200 shadow-xl">
-              <h3 className="text-xl font-bold font-mono text-slate-100 light:text-slate-900 mb-6">
-                Send a Direct Message
-              </h3>
+            <div className="p-8 sm:p-10 rounded-3xl bg-slate-900 light:bg-white border border-slate-800 light:border-slate-200 shadow-xl space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+                  <MessageSquare className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold font-mono text-slate-100 light:text-slate-900">
+                    Send a Message
+                  </h3>
+                  <p className="text-xs text-slate-400 font-mono mt-0.5">
+                    Responses typically within 24-48 hours.
+                  </p>
+                </div>
+              </div>
 
               {submitted ? (
-                <div className="p-8 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-center space-y-3">
-                  <CheckCircle2 className="w-12 h-12 mx-auto text-emerald-400 animate-bounce" />
+                <div className="p-8 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-center space-y-3 animate-fadeIn">
+                  <div className="w-12 h-12 mx-auto rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                    <CheckCircle2 className="w-6 h-6" />
+                  </div>
                   <h4 className="text-lg font-bold font-mono text-emerald-400">
-                    Message Sent Successfully!
+                    Message Dispatched!
                   </h4>
-                  <p className="text-xs text-slate-300 light:text-slate-700">
-                    Thank you for reaching out! Your message has been received.
+                  <p className="text-xs font-mono text-slate-300 light:text-slate-600 max-w-sm mx-auto">
+                    Thank you for reaching out. Your message has been sent successfully. I will get back to you shortly!
                   </p>
                 </div>
               ) : (
@@ -452,150 +383,6 @@ export const Contact = () => {
           </div>
         </div>
       </div>
-
-      {/* --- EDIT CONTACT MODAL --- */}
-      {showEditModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
-          <div className="relative w-full max-w-2xl bg-slate-900 light:bg-white border border-slate-800 light:border-slate-200 rounded-3xl shadow-2xl overflow-hidden my-auto max-h-[90vh] flex flex-col">
-            {/* Modal Header */}
-            <div className="terminal-header justify-between sticky top-0 z-20">
-              <div className="flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-cyan-400" />
-                <span className="font-mono text-xs text-slate-300">
-                  edit_contact_details.config
-                </span>
-              </div>
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-slate-800"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Form */}
-            <form onSubmit={handleSaveContactSubmit} className="p-6 sm:p-8 space-y-5 overflow-y-auto custom-scrollbar">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-mono text-slate-400 mb-1">Email Address</label>
-                  <input
-                    type="email"
-                    placeholder="e.g. suryavansh@example.com"
-                    value={editForm.email}
-                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-slate-800 light:bg-slate-100 border border-slate-700 light:border-slate-300 rounded-xl text-xs text-slate-100 light:text-slate-900"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-mono text-slate-400 mb-1">Phone Number</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. +91 98765 43210"
-                    value={editForm.phone}
-                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-slate-800 light:bg-slate-100 border border-slate-700 light:border-slate-300 rounded-xl text-xs text-slate-100 light:text-slate-900"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-mono text-slate-400 mb-1">GitHub Profile URL</label>
-                  <input
-                    type="text"
-                    placeholder="https://github.com/your-username"
-                    value={editForm.github}
-                    onChange={(e) => setEditForm({ ...editForm, github: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-slate-800 light:bg-slate-100 border border-slate-700 light:border-slate-300 rounded-xl text-xs text-slate-100 light:text-slate-900"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-mono text-slate-400 mb-1">LinkedIn Profile URL</label>
-                  <input
-                    type="text"
-                    placeholder="https://linkedin.com/in/your-username"
-                    value={editForm.linkedin}
-                    onChange={(e) => setEditForm({ ...editForm, linkedin: e.target.value })}
-                    className="w-full px-4 py-2.5 bg-slate-800 light:bg-slate-100 border border-slate-700 light:border-slate-300 rounded-xl text-xs text-slate-100 light:text-slate-900"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-mono text-slate-400 mb-1">Location / City</label>
-                <input
-                  type="text"
-                  placeholder="e.g. New Delhi, India"
-                  value={editForm.location}
-                  onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
-                  className="w-full px-4 py-2.5 bg-slate-800 light:bg-slate-100 border border-slate-700 light:border-slate-300 rounded-xl text-xs text-slate-100 light:text-slate-900"
-                />
-              </div>
-
-              {/* Additional Custom Social Links */}
-              <div className="border-t border-slate-800 pt-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-mono text-cyan-400 font-bold uppercase">
-                    Additional Social & Coding Links
-                  </h4>
-                  <button
-                    type="button"
-                    onClick={handleAddCustomLink}
-                    className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-cyan-400 font-mono text-xs rounded-lg border border-slate-700 flex items-center gap-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> + Add Link
-                  </button>
-                </div>
-
-                {editForm.additionalLinks.map((link, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      placeholder="Label (e.g. LeetCode)"
-                      value={link.label}
-                      onChange={(e) => handleCustomLinkChange(idx, 'label', e.target.value)}
-                      className="w-1/3 px-3 py-2 bg-slate-800 light:bg-slate-100 border border-slate-700 text-xs text-slate-100 light:text-slate-900 rounded-xl"
-                    />
-                    <input
-                      type="text"
-                      placeholder="URL (e.g. https://leetcode.com/username)"
-                      value={link.url}
-                      onChange={(e) => handleCustomLinkChange(idx, 'url', e.target.value)}
-                      className="flex-1 px-3 py-2 bg-slate-800 light:bg-slate-100 border border-slate-700 text-xs text-slate-100 light:text-slate-900 rounded-xl"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveCustomLink(idx)}
-                      className="p-2 text-rose-400 hover:text-rose-300 rounded-lg hover:bg-slate-800"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {/* Modal Footer Controls */}
-              <div className="pt-4 border-t border-slate-800 flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowEditModal(false)}
-                  className="px-5 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-mono font-bold"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-mono font-bold shadow-lg shadow-cyan-500/20"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </section>
   );
 };

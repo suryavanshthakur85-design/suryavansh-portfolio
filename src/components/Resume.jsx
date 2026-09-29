@@ -1,29 +1,10 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { usePortfolio } from '../context/PortfolioContext';
-import { Terminal, FileText, Download, Upload, RefreshCw, CheckCircle2, Eye } from 'lucide-react';
+import { Terminal, FileText, Download, CheckCircle2, Eye, Pencil } from 'lucide-react';
 
 export const Resume = () => {
-  const { data, updateResume } = usePortfolio();
-  const { resume } = data;
-  const fileInputRef = useRef(null);
-
-  const handleFileUpload = (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (uploadEvent) => {
-        updateResume({
-          resumeUrl: uploadEvent.target.result,
-          fileName: file.name,
-          lastUpdated: new Date().toLocaleDateString('en-US', {
-            month: 'short',
-            year: 'numeric'
-          })
-        });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  const { data, editMode, setEditModalConfig } = usePortfolio();
+  const resume = data.resume || {};
 
   const handleDownload = () => {
     if (resume.resumeUrl) {
@@ -34,7 +15,7 @@ export const Resume = () => {
       link.click();
       document.body.removeChild(link);
     } else {
-      alert('Please upload a resume file first using the Upload/Replace button below!');
+      alert('Resume file is being updated. Please check back shortly.');
     }
   };
 
@@ -55,6 +36,16 @@ export const Resume = () => {
               Download or preview my latest academic & technical resume.
             </p>
           </div>
+
+          {editMode && (
+            <button
+              onClick={() => setEditModalConfig({ isOpen: true, type: 'resume', data: resume })}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 text-cyan-400 border border-cyan-500/40 text-xs font-mono font-semibold transition-all shadow-sm"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              <span>Edit Resume</span>
+            </button>
+          )}
         </div>
 
         {/* Resume Main Box */}
@@ -80,31 +71,24 @@ export const Resume = () => {
               </div>
             </div>
 
-            {/* Download Resume Prominent Button */}
+            {/* Download & Edit Resume Buttons */}
             <div className="flex flex-wrap items-center gap-3">
+              {editMode && (
+                <button
+                  onClick={() => setEditModalConfig({ isOpen: true, type: 'resume', data: resume })}
+                  className="px-5 py-3.5 bg-slate-800 hover:bg-slate-700 text-cyan-400 font-mono font-bold text-sm rounded-xl border border-cyan-500/40 flex items-center gap-2 transition-all"
+                >
+                  <Pencil className="w-4 h-4" />
+                  <span>Update Resume File</span>
+                </button>
+              )}
+
               <button
                 onClick={handleDownload}
                 className="px-6 py-3.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-mono font-extrabold text-sm rounded-xl shadow-xl shadow-cyan-500/25 flex items-center gap-2 transition-all transform hover:-translate-y-0.5"
               >
                 <Download className="w-5 h-5" />
                 <span>Download Resume</span>
-              </button>
-
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileUpload}
-                accept=".pdf,.doc,.docx,image/*"
-                className="hidden"
-              />
-
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="px-5 py-3.5 bg-slate-800 light:bg-slate-100 hover:bg-slate-700 light:hover:bg-slate-200 text-slate-200 light:text-slate-800 border border-slate-700 light:border-slate-300 font-mono text-xs font-bold rounded-xl flex items-center gap-2 transition-all"
-                title="Upload or replace PDF resume"
-              >
-                <Upload className="w-4 h-4 text-cyan-400" />
-                <span>{resume.resumeUrl ? 'Replace Resume' : 'Upload Resume'}</span>
               </button>
             </div>
           </div>
@@ -120,7 +104,7 @@ export const Resume = () => {
 
             {resume.resumeUrl ? (
               <div className="w-full min-h-[400px] flex flex-col items-center justify-center space-y-4">
-                {resume.resumeUrl.startsWith('data:application/pdf') ? (
+                {resume.resumeUrl.startsWith('data:application/pdf') || resume.resumeUrl.endsWith('.pdf') ? (
                   <iframe
                     src={resume.resumeUrl}
                     title="Resume PDF Preview"
@@ -142,23 +126,23 @@ export const Resume = () => {
                 )}
               </div>
             ) : (
-              <div className="py-12 px-4 space-y-4">
+              <div className="py-12 px-4 space-y-3">
                 <div className="w-16 h-16 mx-auto rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-                  <Upload className="w-8 h-8" />
+                  <FileText className="w-8 h-8" />
                 </div>
                 <div>
                   <p className="font-mono text-sm font-bold text-slate-200 light:text-slate-800">
-                    No PDF Resume uploaded yet
+                    Curriculum Vitae
                   </p>
                   <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
-                    Click "Upload Resume" above to attach your official PDF resume so recruiters can preview and download it directly.
+                    Official academic and technical resume for Surya Thakur.
                   </p>
                 </div>
                 <button
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={handleDownload}
                   className="px-5 py-2.5 bg-cyan-500/20 border border-cyan-500/50 text-cyan-400 font-mono text-xs font-bold rounded-xl hover:bg-cyan-500 hover:text-slate-950 transition-colors inline-flex items-center gap-2"
                 >
-                  <Upload className="w-4 h-4" /> Choose Resume File
+                  <Download className="w-4 h-4" /> Download Resume
                 </button>
               </div>
             )}
